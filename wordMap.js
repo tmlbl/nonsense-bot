@@ -2,25 +2,24 @@ var fs = require("fs");
 
 // Track most common neighbors of words for sentence generation
 
-var wordMap = {};
-var starters = [];
+var db = {
+  map: {},
+  starters: []
+};
 
-var mapFile = "/tmp/map.json";
-var startFile = "/tmp/starters.json";
+var dbFile = "/tmp/nonsense.json";
 
 // Load word maps from file
-if (fs.existsSync(mapFile)) {
-  console.log("Loading data files...");
-  wordMap = JSON.parse(fs.readFileSync(mapFile));
-  starters = JSON.parse(fs.readFileSync(startFile));
-  console.log("Loaded", Object.keys(wordMap).length, "word trees");
+if (fs.existsSync(dbFile)) {
+  console.log("Loading data...");
+  db = JSON.parse(fs.readFileSync(dbFile));
+  console.log("Loaded", Object.keys(db.map).length, "word trees");
 }
 
 // Save word map and starters on shutdown
 process.on("SIGINT", function () {
-  console.log("\nSaving in-memory databases...");
-  fs.writeFileSync(mapFile, JSON.stringify(wordMap));
-  fs.writeFileSync(startFile, JSON.stringify(starters));
+  console.log("\nSaving data...");
+  fs.writeFileSync(dbFile, JSON.stringify(db));
   process.exit();
 });
 
@@ -66,8 +65,8 @@ function getStartWord(text) {
   var words = tokenize(text);
   for (var i = 0; i < words.length; i++) {
     if (words[i][0] != "@" && words[i] != "RT") {
-      add(words[i], starters);
-      wordMap[words[i]] = {
+      add(words[i], db.starters);
+      db.map[words[i]] = {
         next: []
       };
       break;
@@ -83,27 +82,27 @@ exports.train = function (text) {
 
   for (var i = 0; i <= words.length; i++) {
     // Check if word is in the map
-    if (Object.keys(wordMap).indexOf(words[i]) == -1) {
-      wordMap[words[i]] = {
+    if (Object.keys(db.map).indexOf(words[i]) == -1) {
+      db.map[words[i]] = {
         next: []
       };
     }
     // Add neighbors
     if (words[i + 1]) {
-      wordMap[words[i]].next.push(words[i + 1]);
+      db.map[words[i]].next.push(words[i + 1]);
     }
   }
 };
 
 exports.tweet = function () {
-  var word = rand(starters);
+  var word = rand(db.starters);
   if (!word) return "";
   var tweet = word;
   var done = false;
 
   while (!done) {
     tweet += " ";
-    word = rand(wordMap[word].next);
+    word = rand(db.map[word].next);
     if (word == undefined || (tweet + word).length > 140) {
       break;
     }

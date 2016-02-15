@@ -18,8 +18,7 @@ if (fs.existsSync(dbFile)) {
 
 // Save word map and starters on shutdown
 process.on("SIGINT", function () {
-  console.log("\nSaving data...");
-  fs.writeFileSync(dbFile, JSON.stringify(db));
+  persist();
   process.exit();
 });
 
@@ -28,13 +27,10 @@ function lint(text) {
   var parts = text.split(" ");
   var keep = [];
   parts.forEach(function (w) {
-    // Remove mentions
-    // if (w[0] == "@") return;
+    // Remove escaped characters
+    if (w.indexOf("&") != -1) return;
     // Remove retweets
     if (w == "RT") return;
-    // Remove URLs
-    // if (w.indexOf("http") != -1) return;
-
     keep.push(w);
   });
   return keep.join(" ");
@@ -95,6 +91,7 @@ exports.train = function (text) {
 };
 
 exports.tweet = function () {
+  var char_limit = 90 + (50 * Math.random());
   var word = rand(db.starters);
   if (!word) return "";
   var tweet = word;
@@ -103,10 +100,18 @@ exports.tweet = function () {
   while (!done) {
     tweet += " ";
     word = rand(db.map[word].next);
-    if (word == undefined || (tweet + word).length > 140) {
+    if (word == undefined || (tweet + word).length > char_limit) {
       break;
     }
     tweet += word;
+    if (word[word.length - 1] == ".") break;
   }
   return tweet.replace("\n", " ");
 }
+
+function persist() {
+  console.log("\nSaving data...");
+  fs.writeFileSync(dbFile, JSON.stringify(db));
+}
+
+exports.save = persist;

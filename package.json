@@ -9,6 +9,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "async": "^1.5.2",
+    "feed-read": "0.0.1",
     "twitter": "^1.2.5"
   }
 }

@@ -5,6 +5,7 @@ var Twitter = require("twitter"),
 var config = JSON.parse(fs.readFileSync("config.json"));
 var client = new Twitter(config);
 var SOURCE_TAG = "#" + config.tag;
+const POST_INTERVAL = 1000 * 60 * 60 // One hour
 
 // Make an actual tweet
 function tweet(text) {
@@ -28,6 +29,12 @@ client.stream("statuses/filter", {track: SOURCE_TAG},  function (stream) {
   });
 });
 
-setInterval(function () {
-  console.log(wordMap.tweet());
-}, 1000);
+if (process.env.NODE_ENV == "prod") {
+  setInterval(function () {
+    tweet(wordMap.tweet());
+  }, POST_INTERVAL);
+} else {
+  setInterval(function () {
+    console.log(wordMap.tweet());
+  }, 1000);
+}

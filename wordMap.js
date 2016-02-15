@@ -1,7 +1,28 @@
+var fs = require("fs");
+
 // Track most common neighbors of words for sentence generation
 
 var wordMap = {};
 var starters = [];
+
+var mapFile = "/tmp/map.json";
+var startFile = "/tmp/starters.json";
+
+// Load word maps from file
+if (fs.existsSync(mapFile)) {
+  console.log("Loading data files...");
+  wordMap = JSON.parse(fs.readFileSync(mapFile));
+  starters = JSON.parse(fs.readFileSync(startFile));
+  console.log("Loaded", Object.keys(wordMap).length, "word trees");
+}
+
+// Save word map and starters on shutdown
+process.on("SIGINT", function () {
+  console.log("\nSaving in-memory databases...");
+  fs.writeFileSync(mapFile, JSON.stringify(wordMap));
+  fs.writeFileSync(startFile, JSON.stringify(starters));
+  process.exit();
+});
 
 // Remove noise from tweets
 function lint(text) {

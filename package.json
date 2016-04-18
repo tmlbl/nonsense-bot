@@ -10,7 +10,10 @@
   "license": "ISC",
   "dependencies": {
     "async": "^1.5.2",
+    "commander": "^2.9.0",
     "feed-read": "0.0.1",
+    "gulp-util": "^3.0.7",
+    "gutil": "^1.6.4",
     "htmlparser2": "^3.9.0",
     "request": "^2.72.0",
     "twitter": "^1.2.5"

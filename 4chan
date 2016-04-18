@@ -1,0 +1,118 @@
+#!/usr/bin/env node
+
+var request = require("request"),
+    htmlparser = require("htmlparser2"),
+    fs = require("fs"),
+    path = require("path"),
+    async = require("async"),
+    program = require("commander"),
+    gutil = require("gulp-util");
+
+program.dir = ".4chan";
+program.images = true;
+program.boards = "pol";
+
+program
+  .option("-b --boards [board]", "The board(s) to browse. Comma-separated lists allowed", "pol")
+  .option("-d --directory [dir]", "The directory to store downloaded data", "./4chan")
+  .option("-i --images", "Download images")
+  .option("-p --posts", "Download posts")
+  .parse(process.argv);
+
+program.dir = path.join(__dirname, program.dir);
+
+async.eachSeries(program.boards.split(","), function (board, boardCallback) {
+  gutil.log("Board", board);
+  var url = "http://boards.4chan.org/" + board;
+  makeDirectories(board, function () {
+    request.get(url, function (err, res, body) {
+      async.eachSeries(getThreads(body), function (t, threadCallback) {
+        gutil.log("Pulling thread " + t);
+        getThreadImages(board, url + "/" + t, threadCallback);
+      }, boardCallback);
+    });
+  });
+}, function () {
+  gutil.log("Done");
+});
+
+function makeDirectories(board, cb) {
+  fs.mkdir(program.dir, function () {
+    fs.mkdir(program.dir + "/" + board, function () {
+      fs.mkdir(program.dir + "/" + board + "/images", function () {
+        cb();
+      });
+    });
+  });
+}
+
+function getImage(board, url, cb) {
+  request(url).on('response',  function (res) {
+    var ctyp = res.headers["content-type"].split("/")[1];
+    var filename = program.dir + "/" + board + "/images/" +
+        res.headers["etag"].replace(/['"]+/g, '') + "." + ctyp;
+    if (!fs.existsSync(filename)) {
+      res.pipe(fs.createWriteStream(filename)).on("finish", cb);
+    } else {
+      cb();
+    }
+  });
+}
+
+function getThreadImages(board, link, cb) {
+  request.get(link, function (err, res, body) {
+    var links = getThreadImageLinks(body)
+    async.eachSeries(links, function (i, icb) {
+      gutil.log("Downloading", i);
+      getImage(board, i, icb);
+    }, cb);
+  });
+}
+
+function getImages(body, tcb) {
+  console.log("links");
+  var links = getThreadImages(body);
+  async.eachSeries(links, function (i, cb) {
+    gutil.log("Downloading", i);
+    getImage(i, cb);
+  }, tcb);
+}
+
+function getThreadImageLinks(content) {
+  var imglinks = [];
+  var parser = new htmlparser.Parser({
+    onopentag: function (name, attribs) {
+      if (attribs.class && attribs.href && attribs.class == "fileThumb") {
+        imglinks.push("http:" + attribs.href);
+      }
+    }
+  }, {decodeEntities: true});
+  parser.write(content);
+  parser.end();
+  return imglinks;
+}
+
+function getThreads(content) {
+  var tlink = "";
+  var tlinks = [];
+  var parser = new htmlparser.Parser({
+    onopentag: function (name, attribs) {
+      if (attribs.class && attribs.class == "replylink") {
+        tlink = attribs.href;
+      }
+    },
+    ontext: function (text) {
+      if (tlink && text == "Reply") {
+        tlinks.push(tlink);
+        tlink = "";
+      }
+    },
+    onclosetag: function (tagname) {
+
+    }
+  }, {decodeEntities: true});
+
+  parser.write(content);
+  parser.end();
+  return tlinks;
+}

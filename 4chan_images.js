@@ -83,8 +83,11 @@ function scrapeBoard(board) {
     doThread(url, threads);
     setInterval(function () {
       doThread(url, threads);
-    }, 10000);
+    }, 1000 * 15);
   });
 }
 
-scrapeBoard("gif");
+scrapeBoard("pol");
+setInterval(function () {
+  scrapeBoard("pol");
+}, 1000 * 60 * 5);

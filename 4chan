@@ -8,7 +8,7 @@ var request = require("request"),
     program = require("commander"),
     gutil = require("gulp-util");
 
-program.dir = ".4chan";
+program.dir = path.join(process.env.HOME, ".4chan");
 program.images = true;
 program.boards = "pol";
 
@@ -19,7 +19,11 @@ program
   .option("-p --posts", "Download posts")
   .parse(process.argv);
 
-program.dir = path.join(__dirname, program.dir);
+function printThreadname(t) {
+  return gutil.colors.blue(
+    t.split("/")[t.split("/").length - 1].replace(/-/g, ' ')
+  );
+}
 
 async.eachSeries(program.boards.split(","), function (board, boardCallback) {
   gutil.log("Board", board);
@@ -27,7 +31,7 @@ async.eachSeries(program.boards.split(","), function (board, boardCallback) {
   makeDirectories(board, function () {
     request.get(url, function (err, res, body) {
       async.eachSeries(getThreads(body), function (t, threadCallback) {
-        gutil.log("Pulling thread " + t);
+        gutil.log("Pulling thread [", printThreadname(t), "]");
         getThreadImages(board, url + "/" + t, threadCallback);
       }, boardCallback);
     });
@@ -46,12 +50,13 @@ function makeDirectories(board, cb) {
   });
 }
 
-function getImage(board, url, cb) {
+function getImage(board, thread, url, cb) {
   request(url).on('response',  function (res) {
     var ctyp = res.headers["content-type"].split("/")[1];
-    var filename = program.dir + "/" + board + "/images/" +
+    var filename = program.dir + "/" + board + "/images/" + thread + "_" +
         res.headers["etag"].replace(/['"]+/g, '') + "." + ctyp;
     if (!fs.existsSync(filename)) {
+      gutil.log("[", printThreadname(thread), "]", url);
       res.pipe(fs.createWriteStream(filename)).on("finish", cb);
     } else {
       cb();
@@ -63,8 +68,8 @@ function getThreadImages(board, link, cb) {
   request.get(link, function (err, res, body) {
     var links = getThreadImageLinks(body)
     async.eachSeries(links, function (i, icb) {
-      gutil.log("Downloading", i);
-      getImage(board, i, icb);
+      thread = link.split("/")[link.split("/").length - 1];
+      getImage(board, thread, i, icb);
     }, cb);
   });
 }

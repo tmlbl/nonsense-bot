@@ -8,13 +8,10 @@ var request = require("request"),
     program = require("commander"),
     gutil = require("gulp-util");
 
-program.images = true;
-program.boards = "wg";
-
 program
   .option("-b --boards [board]", "The board(s) to browse. Comma-separated lists allowed", "wg")
   .option("-d --directory [dir]", "The directory to store downloaded data", path.join(process.env.HOME, ".4chan"))
-  .option("-i --images", "Download images")
+  .option("-i --images", "Download images", true)
   .option("-p --posts", "Download posts")
   .parse(process.argv);
 

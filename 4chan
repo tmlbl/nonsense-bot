@@ -19,9 +19,13 @@ program
   .option("-p --posts", "Download posts")
   .parse(process.argv);
 
+function threadname(t) {
+  return t.split("/")[t.split("/").length - 1];
+}
+
 function printThreadname(t) {
   return gutil.colors.blue(
-    t.split("/")[t.split("/").length - 1].replace(/-/g, ' ')
+    threadname(t).replace(/-/g, ' ')
   );
 }
 
@@ -53,7 +57,11 @@ function makeDirectories(board, cb) {
 function getImage(board, thread, url, cb) {
   request(url).on('response',  function (res) {
     var ctyp = res.headers["content-type"].split("/")[1];
-    var filename = program.dir + "/" + board + "/images/" + thread + "_" +
+    var threadDir = program.dir + "/" + board + "/images/" + thread;
+    if (!fs.existsSync(threadDir)) {
+      fs.mkdirSync(threadDir);
+    };
+    var filename = threadDir + "/" +
         res.headers["etag"].replace(/['"]+/g, '') + "." + ctyp;
     if (!fs.existsSync(filename)) {
       gutil.log("[", printThreadname(thread), "]", url);

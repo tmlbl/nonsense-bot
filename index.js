@@ -1,6 +1,6 @@
 var twitter = require("./twitter"),
-    chan = require("./4chan");
+    chan = require("./ingest_4chan");
 
-twitter.ingestTwitter("#blacklivesmatter");
+//twitter.ingestTwitter("#blacklivesmatter");
 chan.ingest4chan("pol");
 twitter.createTweets();

@@ -10,10 +10,10 @@ var request = require("request"),
 
 program.dir = path.join(process.env.HOME, ".4chan");
 program.images = true;
-program.boards = "pol";
+program.boards = "wg";
 
 program
-  .option("-b --boards [board]", "The board(s) to browse. Comma-separated lists allowed", "pol")
+  .option("-b --boards [board]", "The board(s) to browse. Comma-separated lists allowed", "wg")
   .option("-d --directory [dir]", "The directory to store downloaded data", "./4chan")
   .option("-i --images", "Download images")
   .option("-p --posts", "Download posts")
@@ -55,20 +55,19 @@ function makeDirectories(board, cb) {
 }
 
 function getImage(board, thread, url, cb) {
+  var imgname = url.split("/")[url.split("/").length - 1];
+  var threadDir = program.dir + "/" + board + "/images/" + thread;
+  var filename = threadDir + "/" + imgname;
+
+  if (!fs.existsSync(threadDir)) {
+    fs.mkdirSync(threadDir);
+  };
+
+  if (fs.existsSync(filename)) { return cb() }
+
   request(url).on('response',  function (res) {
-    var ctyp = res.headers["content-type"].split("/")[1];
-    var threadDir = program.dir + "/" + board + "/images/" + thread;
-    if (!fs.existsSync(threadDir)) {
-      fs.mkdirSync(threadDir);
-    };
-    var filename = threadDir + "/" +
-        res.headers["etag"].replace(/['"]+/g, '') + "." + ctyp;
-    if (!fs.existsSync(filename)) {
-      gutil.log("[", printThreadname(thread), "]", url);
-      res.pipe(fs.createWriteStream(filename)).on("finish", cb);
-    } else {
-      cb();
-    }
+    gutil.log(gutil.colors.yellow("GET"), "[", printThreadname(thread), "]", imgname);
+    res.pipe(fs.createWriteStream(filename)).on("finish", cb);
   });
 }
 

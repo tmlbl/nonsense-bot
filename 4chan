@@ -9,32 +9,44 @@ var request = require("request"),
     gutil = require("gulp-util");
 
 program
-  .option("-b --boards [board]", "The board(s) to browse. Comma-separated lists allowed", "wg")
-  .option("-d --directory [dir]", "The directory to store downloaded data", path.join(process.env.HOME, ".4chan"))
-  .option("-i --images", "Download images", true)
-  .option("-p --posts", "Download posts")
+  .option("-b --boards [board]", "The board(s) to scrape. Comma-separated lists allowed", "wg")
+  .option("-d --directory [dir]", "The directory to store downloaded images", path.join(process.env.HOME, ".4chan"))
+  .option("-p --pages [num]", "Number of pages to scrape", 1)
   .parse(process.argv);
 
 function threadname(t) {
   return t.split("/")[t.split("/").length - 1];
 }
 
-function printThreadname(t) {
-  return gutil.colors.blue(
+function printWithBrackets(t, color) {
+  return "[ " + gutil.colors[color](
     threadname(t).replace(/-/g, ' ')
-  );
+  ) + " ]";
+}
+
+function scrapePage(board, pagenum, cb) {
+  gutil.log("page", printWithBrackets(pagenum.toString(), "yellow"));
+  var url = "http://boards.4chan.org/" + board + "/" +
+      (pagenum == 1 ? "" : pagenum);
+  request.get(url, function (err, res, body) {
+    async.eachSeries(getThreads(body), function (t, tcb) {
+      gutil.log("thread", printWithBrackets(t, "blue"));
+      getThreadImages(board, url + "/" + t, function () {
+        tcb();
+      });
+    }, cb);
+  });
 }
 
 async.eachSeries(program.boards.split(","), function (board, boardCallback) {
-  gutil.log("Board", board);
-  var url = "http://boards.4chan.org/" + board;
+  gutil.log("board", printWithBrackets(board, "yellow"));
   makeDirectories(board, function () {
-    request.get(url, function (err, res, body) {
-      async.eachSeries(getThreads(body), function (t, threadCallback) {
-        gutil.log("Pulling thread [", printThreadname(t), "]");
-        getThreadImages(board, url + "/" + t, threadCallback);
-      }, boardCallback);
-    });
+    var pages = [1,2,3,4,5,6,7,8,9,10];
+    async.eachSeries(pages, function (page, pcb) {
+      if (page <= program.pages) {
+        scrapePage(board, page, pcb);
+      } else { pcb() }
+    }, boardCallback);
   });
 }, function () {
   gutil.log("Done");
@@ -60,28 +72,19 @@ function getImage(board, thread, url, cb) {
   if (fs.existsSync(filename)) { return cb() }
 
   request(url).on("response",  function (res) {
-    gutil.log(gutil.colors.yellow("GET"), "[", printThreadname(thread), "]", imgname);
     res.pipe(fs.createWriteStream(filename)).on("finish", cb);
   });
 }
 
 function getThreadImages(board, link, cb) {
   request.get(link, function (err, res, body) {
-    var links = getThreadImageLinks(body)
+    var links = getThreadImageLinks(body);
+    gutil.log("get", gutil.colors.yellow(links.length), "images...");
     async.eachSeries(links, function (i, icb) {
       thread = link.split("/")[link.split("/").length - 1];
       getImage(board, thread, i, icb);
     }, cb);
   });
-}
-
-function getImages(body, tcb) {
-  console.log("links");
-  var links = getThreadImages(body);
-  async.eachSeries(links, function (i, cb) {
-    gutil.log("Downloading", i);
-    getImage(i, cb);
-  }, tcb);
 }
 
 function getThreadImageLinks(content) {

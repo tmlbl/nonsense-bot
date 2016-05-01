@@ -111,10 +111,12 @@ function getPosts(content) {
 
 function getImage(board, thread, url, cb) {
   var imgname = url.split("/")[url.split("/").length - 1],
-      threadDir = program.directory + "/" + board + "/" + thread,
-      filename = threadDir + "/" + imgname;
+      boardDir = program.directory + "/" + board,
+      filename = boardDir + "/" + imgname;
 
-  if (!fs.existsSync(threadDir)) {
+  debug("Saving in "+filename);
+
+  if (!fs.existsSync(boardDir)) {
     fs.mkdirSync(threadDir);
   };
 
@@ -126,6 +128,7 @@ function getImage(board, thread, url, cb) {
 }
 
 function getThreadContent(board, link, cb) {
+  debug(link);
   request.get(link, function (err, res, body) {
     // Get posts
     if (program.posts) {

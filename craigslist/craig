@@ -50,6 +50,7 @@ function makeUrl(region, category, query, pagenum) {
 
 // Recursively get page links
 function getPostLinks(region, category, query, cb) {
+  gutil.log("Getting search results...")
   var links = [];
   var count = 20;
   var pagenum = 0;
@@ -58,8 +59,11 @@ function getPostLinks(region, category, query, cb) {
     function () { return count != 0 },
     function (callback) {
       var url = makeUrl(region, category, query, pagenum);
-      gutil.log(url);
+      // gutil.log(url);
       request.get(url, function (err, res, body) {
+        if (err) {
+          return cb(err);
+        }
         var pageLinks = extractPostLinks(body);
         count = pageLinks.length;
         pageLinks.forEach(function (l) { links.push(baseUrl(region) + l) });
@@ -115,12 +119,16 @@ function extractPosts(content) {
 function getPosts(links, postsCallback) {
   var sets = [];
   var set = [];
+  var posts = [];
   var funcs = links.forEach(function (l) {
     if (set.length <= program.parallel) {
       set.push(function (cb) {
-        gutil.log("POST", l);
+        // gutil.log("POST", l);
         request.get(l, function (err, res, body) {
-          console.log(extractPosts(body));
+          if (err) {
+            return cb(err);
+          }
+          extractPosts(body).forEach(function (p) { posts.push(p) });
           cb();
         })
       })
@@ -130,9 +138,13 @@ function getPosts(links, postsCallback) {
     }
   });
 
-  async.each(sets, function (set, setCallback) {
+  gutil.log("Scraping post contents...");
+  async.eachSeries(sets, function (set, setCallback) {
+    gutil.log("Doing set of", program.parallel);
     async.parallel(set, setCallback);
-  }, postsCallback);
+  }, function () {
+    postsCallback(posts);
+  });
 
 }
 
@@ -140,8 +152,8 @@ function search(region, category, query) {
   gutil.log("Searching for", query, "in", region);
   getPostLinks(region, category, query, function (err, links) {
     gutil.log("Got", links.length, "results");
-    getPosts(links, function () {
-
+    getPosts(links, function (posts) {
+      // console.log(posts);
     });
   });
 }
